@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 信息图视频生成器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <div class="brand">
+        <div class="overline"><span class="overline-mark"></span>Text &rarr; Infographic &rarr; Reveal &rarr; 1080P</div>
+        <h1>AI 信息图视频生成器</h1>
+        <p class="subtitle">文字 → 信息图 → 顺序遮罩揭示 → 1080p 视频</p>
+      </div>
+      <div class="masthead-meta">
+        <span class="meta-label">本地工作台</span>
+        <span class="meta-value">127.0.0.1:8000</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="card" id="step-input">
+      <h2 class="sec-head">
+        <span class="sec-title"><span class="sec-num">01</span>输入内容</span>
+        <span class="sec-note">粘贴原文，AI 自动提炼讲解点</span>
+      </h2>
+      <textarea id="input-text" rows="8"
+        placeholder="粘贴一段文字（资讯、知识点、产品介绍……），AI 会自动提炼讲解点并生成信息图动画视频。"></textarea>
+      <details>
+        <summary>动画参数</summary>
+        <div class="params">
+          <label>开场时长（秒）<input type="number" id="p-intro" value="2" min="0.5" max="10" step="0.5"></label>
+          <label>每个讲解点（秒）<input type="number" id="p-point" value="4" min="2" max="15" step="0.5"></label>
+          <label>转场时长（秒）<input type="number" id="p-trans" value="0.8" min="0.2" max="3" step="0.1"></label>
+          <label>结尾时长（秒）<input type="number" id="p-outro" value="2" min="0.5" max="10" step="0.5"></label>
+        </div>
+      </details>
+      <button id="btn-create" class="primary" type="button">开始生成</button>
+    </section>
+
+    <section class="card hidden" id="step-progress">
+      <h2 class="sec-head">
+        <span class="sec-title">进度</span>
+        <span class="sec-note">Pipeline</span>
+      </h2>
+      <div id="stage-indicator"></div>
+      <div id="log"></div>
+    </section>
+
+    <section class="card hidden" id="step-preview">
+      <h2 class="sec-head">
+        <span class="sec-title"><span class="sec-num">02</span>预览遮罩顺序</span>
+        <span class="sec-note">点击右侧步骤，查看该时刻已揭开的区域</span>
+      </h2>
+      <div class="preview-layout">
+        <div class="infographic-box">
+          <div id="mask-preview" class="mask-preview">
+            <img id="preview-infographic" alt="信息图整图">
+            <div id="preview-mask-layer" class="preview-mask-layer"></div>
+          </div>
+          <div class="actions">
+            <button id="btn-redo-image" type="button">重新生成整图</button>
+            <button id="btn-redo-regions" type="button">重新识别区域</button>
+            <button id="btn-render" class="primary" type="button">生成视频</button>
+          </div>
+        </div>
+        <aside class="mask-panel">
+          <div class="panel-label">遮罩检查</div>
+          <div class="mask-color-row">
+            <span>自动统计的遮罩色</span>
+            <span id="mask-color-swatch" class="mask-color-swatch"></span>
+            <code id="mask-color-value"></code>
+          </div>
+          <p class="mask-help">点击下方步骤，查看该时刻已经揭开的区域。</p>
+          <div id="mask-sequence" class="mask-sequence"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="card hidden" id="step-video">
+      <h2 class="sec-head">
+        <span class="sec-title"><span class="sec-num">03</span>视频</span>
+        <span class="sec-note">1920 × 1080 · MP4</span>
+      </h2>
+      <video id="video-player" controls></video>
+      <div class="actions">
+        <a id="btn-download" class="button primary" download>下载 MP4</a>
+        <button id="btn-redo-render" type="button">重新渲染</button>
+        <button id="btn-new" class="ghost" type="button">新建任务</button>
+      </div>
+    </section>
+
+    <section class="card card-error hidden" id="step-error">
+      <h2 class="sec-head">
+        <span class="sec-title"><span class="sec-num">!</span>出错了</span>
+      </h2>
+      <p id="error-text"></p>
+      <div class="actions">
+        <button id="btn-retry" class="primary" type="button">从失败阶段重试</button>
+        <button id="btn-new-from-error" class="ghost" type="button">新建任务</button>
+      </div>
+    </section>
+
+    <section class="card" id="step-history">
+      <h2 class="sec-head">
+        <span class="sec-title"><span class="sec-num">04</span>历史任务</span>
+        <span class="sec-note">点击任务回到对应阶段</span>
+      </h2>
+      <div id="history-list" class="history-list"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>本地运行 · 任务产物保存在 output/ 目录</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

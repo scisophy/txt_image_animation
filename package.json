@@ -1,0 +1,16 @@
+{
+  "name": "txt-image-animation",
+  "private": true,
+  "version": "1.0.0",
+  "description": "AI infographic mask animation generator",
+  "type": "module",
+  "scripts": {
+    "postinstall": "node scripts/patch-puppeteer-windows.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "hyperframes": "0.8.20"
+  }
+}
