@@ -1,4 +1,4 @@
-"""阶段 1a：GPT-5.6 Sol 完成内容理解、讲解点提炼与图片内容方案。"""
+"""阶段 1a：豆包模型完成内容理解、讲解点提炼与图片内容方案。"""
 import json
 import logging
 
@@ -35,8 +35,7 @@ PLAN_INSTRUCTIONS = """\
 def plan_content(user_text: str) -> ContentPlan:
     client = get_client()
     response = client.responses.parse(
-        model=settings.planner_model,
-        reasoning={"effort": "medium"},
+        model=settings.text_model,
         instructions=PLAN_INSTRUCTIONS,
         input=[
             {

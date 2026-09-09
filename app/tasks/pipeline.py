@@ -29,7 +29,7 @@ STAGE_LABELS = {
     "render": "视频渲染",
 }
 
-# gpt-image-2 限流 5 张/分钟，任务串行执行避免互相挤占额度
+# AI 任务串行执行，避免文本、视觉与生图请求互相挤占方舟限流额度。
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pipeline")
 
 

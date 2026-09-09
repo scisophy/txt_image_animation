@@ -1,6 +1,8 @@
 fastapi>=0.115
 uvicorn[standard]>=0.30
+# 火山方舟官方支持通过 OpenAI 兼容协议调用 API v3。
 openai>=1.60
+httpx>=0.27
 pillow>=10.0
 numpy>=1.26
 pydantic>=2.7

@@ -1,4 +1,4 @@
-"""阶段 2a：GPT-5.6 Sol（vision）+ Structured Outputs 输出归一化 bbox。"""
+"""阶段 2a：豆包视觉模型使用结构化输出返回归一化 bbox。"""
 import base64
 import json
 import logging
@@ -53,8 +53,7 @@ def detect_regions(infographic_path: Path, plan_points: list[dict]) -> DetectedR
 def _detect(image_b64: str, points_json: str) -> DetectedRegions:
     client = get_client()
     response = client.responses.parse(
-        model=settings.planner_model,
-        reasoning={"effort": "medium"},
+        model=settings.vision_model,
         input=[
             {
                 "role": "user",
@@ -71,7 +70,6 @@ def _detect(image_b64: str, points_json: str) -> DetectedRegions:
                     {
                         "type": "input_image",
                         "image_url": f"data:image/png;base64,{image_b64}",
-                        "detail": "original",
                     },
                 ],
             }

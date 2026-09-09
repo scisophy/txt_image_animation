@@ -1,16 +1,49 @@
 import json
 import subprocess
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
 
 from app.core import (
     content_planner,
+    image_generator,
+    llm,
     mask_builder,
     region_detector,
     storyboard_html,
     video_exporter,
 )
+
+
+def test_ark_client_uses_configured_key_and_base_url(monkeypatch):
+    captured = {}
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(llm, "OpenAI", FakeOpenAI)
+    monkeypatch.setattr(llm, "_client", None)
+    monkeypatch.setattr(llm.settings, "ark_api_key", "test-key")
+    monkeypatch.setattr(
+        llm.settings, "ark_base_url", "https://ark.cn-beijing.volces.com/api/v3/"
+    )
+
+    client = llm.get_client()
+
+    assert isinstance(client, FakeOpenAI)
+    assert captured["api_key"] == "test-key"
+    assert captured["base_url"] == "https://ark.cn-beijing.volces.com/api/v3"
+    assert captured["max_retries"] == 0
+
+
+def test_ark_client_requires_key(monkeypatch):
+    monkeypatch.setattr(llm, "_client", None)
+    monkeypatch.setattr(llm.settings, "ark_api_key", "")
+
+    with pytest.raises(RuntimeError, match="ARK_API_KEY"):
+        llm.get_client()
 
 
 def test_plan_content_parses_and_renumbers(monkeypatch):
@@ -44,6 +77,58 @@ def test_build_image_prompt_contains_points():
     assert "16:9" in prompt
     assert "要点一" in prompt
     assert "原文" in prompt
+
+
+def test_seedream_result_accepts_base64():
+    item = SimpleNamespace(b64_json="aW1hZ2U=", url=None)
+    assert image_generator._result_bytes(item) == b"image"
+
+
+def test_seedream_result_accepts_url(monkeypatch):
+    class FakeResponse:
+        content = b"downloaded-image"
+
+        @staticmethod
+        def raise_for_status():
+            return None
+
+    monkeypatch.setattr(image_generator.httpx, "get", lambda *a, **k: FakeResponse())
+    item = SimpleNamespace(b64_json=None, url="https://example.invalid/image.png")
+    assert image_generator._result_bytes(item) == b"downloaded-image"
+
+
+def test_seedream_generation_uses_ark_parameters(monkeypatch, tmp_path):
+    captured = {}
+
+    class FakeImages:
+        def generate(self, **kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(
+                data=[SimpleNamespace(b64_json="aW1hZ2U=", url=None)]
+            )
+
+    class FakeClient:
+        images = FakeImages()
+
+    monkeypatch.setattr(image_generator, "get_client", lambda: FakeClient())
+    monkeypatch.setattr(image_generator, "crop_to_aspect_ratio", lambda *a, **k: False)
+    monkeypatch.setattr(image_generator.settings, "image_model", "seedream-test")
+    monkeypatch.setattr(image_generator.settings, "image_size", "2560x1440")
+    monkeypatch.setattr(image_generator.settings, "image_watermark", False)
+
+    output = image_generator.generate_infographic("test prompt", tmp_path / "out.png")
+
+    assert output.read_bytes() == b"image"
+    assert captured == {
+        "model": "seedream-test",
+        "prompt": "test prompt",
+        "size": "2560x1440",
+        "response_format": "b64_json",
+        "extra_body": {
+            "watermark": False,
+            "sequential_image_generation": "disabled",
+        },
+    }
 
 
 def test_region_validation_detects_mismatch():

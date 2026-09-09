@@ -1,19 +1,21 @@
-# AI 信息图动画生成器 
+# 火山方舟 AI 信息图动画生成器
 
 ## 由Qoder开发
 
 将一段文字自动转换为 16:9 信息图，并按照讲解顺序逐步揭示信息图中的内容区域，最终渲染为 1080p MP4 视频。
 
-项目始终使用同一张完整信息图。尚未讲解的区域会被主背景色遮住；进入对应讲解点时，遮罩按顺序收起，已经揭示的内容保持可见。我不知道啊。
+文本规划、图片理解和图片生成均由火山方舟提供。项目继续使用 `openai` Python 包作为方舟官方支持的 OpenAI 兼容协议客户端，但不会连接 OpenAI 服务，也不需要 OpenAI API Key。
+
+项目始终使用同一张完整信息图。尚未讲解的区域会被主背景色遮住；进入对应讲解点时，遮罩按顺序收起，已经揭示的内容保持可见。
 
 ## 工作流程
 
 ```text
 用户原文
   ↓
-GPT 提炼 3～6 个讲解点
+豆包文本模型提炼 3～6 个讲解点
   ↓
-gpt-image-2 生成完整 16:9 信息图
+Seedream 生成完整 16:9 信息图
   ↓
 视觉模型定位每个讲解点的归一化 bbox
   ↓
@@ -47,7 +49,7 @@ HyperFrames + GSAP 生成可定位动画时间线
 - Node.js 22 或更高版本
 - `npm`
 - FFmpeg，并已加入 `PATH`
-- 可用的 OpenAI API Key
+- 可用的火山方舟 API Key，以及已开通的文本、视觉和 Seedream 模型权限
 
 可以先检查本机环境：
 
@@ -73,10 +75,10 @@ Copy-Item .env.example .env
 编辑 `.env`，至少填写：
 
 ```dotenv
-OPENAI_API_KEY=sk-你的_API_Key
+ARK_API_KEY=你的火山方舟_API_Key
 ```
 
-不要提交或分享包含真实 API Key 的 `.env` 文件。
+Key 可在[火山方舟控制台](https://console.volcengine.com/ark/region:ark+cn-beijing/apikey)创建。不要提交或分享包含真实 API Key 的 `.env` 文件。
 
 ## 启动
 
@@ -103,13 +105,17 @@ http://127.0.0.1:8000
 
 配置通过 `.env` 读取。可用变量如下：
 
+项目根目录的 `.env` 优先于同名的 Windows 用户级或系统级环境变量，避免机器上遗留的旧 Key 覆盖当前项目配置。
+
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | 无 | 必填，OpenAI API Key |
-| `PLANNER_MODEL` | `gpt-5.6-sol` | 内容规划和视觉区域检测模型 |
-| `IMAGE_MODEL` | `gpt-image-2` | 信息图生成模型 |
-| `IMAGE_SIZE` | `2048x1152` | 信息图尺寸 |
-| `IMAGE_QUALITY` | `high` | 图片生成质量 |
+| `ARK_API_KEY` | 无 | 必填，火山方舟 API Key |
+| `ARK_BASE_URL` | `https://ark.cn-beijing.volces.com/api/v3` | 方舟 OpenAI 兼容接口地址 |
+| `ARK_TEXT_MODEL` | `doubao-seed-2-0-lite-260215` | 内容规划模型；须已对账号开放 |
+| `ARK_VISION_MODEL` | `doubao-seed-2-0-lite-260215` | 信息图区域定位模型；须支持图片理解 |
+| `ARK_IMAGE_MODEL` | `doubao-seedream-5-0-260128` | Seedream 信息图生成模型 |
+| `ARK_IMAGE_SIZE` | `2560x1440` | 信息图尺寸，默认使用 16:9 的 2K 推荐尺寸 |
+| `ARK_IMAGE_WATERMARK` | `false` | 是否添加 AI 生成水印 |
 | `INTRO_DURATION` | `2` | 开场时长，秒 |
 | `POINT_DURATION` | `4` | 每个讲解点时长，秒 |
 | `TRANSITION_DURATION` | `0.8` | 遮罩揭示时长，秒 |
@@ -226,9 +232,9 @@ app/
 │   └── schemas.py            # 请求模型
 ├── core/
 │   ├── config.py             # 环境变量和默认参数
-│   ├── content_planner.py    # 内容规划与图片提示词
-│   ├── image_generator.py    # 完整信息图生成
-│   ├── region_detector.py    # 视觉区域识别
+│   ├── content_planner.py    # 豆包内容规划与图片提示词
+│   ├── image_generator.py    # Seedream 完整信息图生成
+│   ├── region_detector.py    # 豆包视觉区域识别
 │   ├── mask_builder.py       # 主背景色统计与遮罩规格
 │   ├── storyboard_html.py    # HyperFrames HTML 与 GSAP 时间线
 │   └── video_exporter.py     # HyperFrames 检查和视频渲染
@@ -237,7 +243,7 @@ app/
 
 scripts/
 ├── patch-puppeteer-windows.mjs # Windows 下禁止浏览器脱离父进程
-└── smoke_render.py             # 不调用 OpenAI 的真实渲染冒烟测试
+└── smoke_render.py             # 不调用火山方舟的真实渲染冒烟测试
 tests/                        # 单元测试
 package.json                  # 固定 HyperFrames CLI 版本与安装补丁
 run.py                       # Uvicorn 启动入口
@@ -263,13 +269,21 @@ node --check app\static\app.js
 python scripts\smoke_render.py
 ```
 
-冒烟脚本会在系统临时目录中生成合成信息图、执行 HyperFrames lint/check，并真实渲染一个 MP4，不会调用 OpenAI API。
+冒烟脚本会在系统临时目录中生成合成信息图、执行 HyperFrames lint/check，并真实渲染一个 MP4，不会调用火山方舟 API。
 
 ## 常见问题
 
-### 提示缺少 `OPENAI_API_KEY`
+### 提示缺少 `ARK_API_KEY`
 
-确认已经把 `.env.example` 复制为 `.env`，并填写真实 Key。修改后需要重启服务。
+确认已经把 `.env.example` 复制为 `.env`，并填写真实的火山方舟 Key。修改后需要重启服务。
+
+### 提示模型不存在或无权限
+
+确认 `.env` 中的 `ARK_TEXT_MODEL`、`ARK_VISION_MODEL` 和 `ARK_IMAGE_MODEL` 与火山方舟控制台中已开通的模型一致。不同账号或地域的可用模型可能不同；修改模型 ID 后需要重启服务。
+
+### 提示 API Key 不存在
+
+必须使用火山方舟控制台“API Key 管理”页面创建的 Key，而不是火山引擎 Access Key、Secret Key、账户密码或经过额外编码的字符串。若 Key 曾发送到聊天、邮件或公开日志中，应在控制台撤销并重新创建。
 
 ### 提示找不到本地 HyperFrames CLI
 
